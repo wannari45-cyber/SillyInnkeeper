@@ -1,0 +1,68 @@
+name: Build SillyInnkeeper Offline for Windows
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Download source
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install server dependencies
+        working-directory: server
+        run: npm install --no-audit --no-fund
+
+      - name: Install client dependencies
+        working-directory: client
+        run: npm install --no-audit --no-fund
+
+      - name: Build client
+        working-directory: client
+        run: npm run build
+
+      - name: Build server
+        working-directory: server
+        run: npm run build
+
+      - name: Remove development dependencies
+        working-directory: server
+        run: npm prune --omit=dev --no-audit
+
+      - name: Prepare offline package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path package/server
+          New-Item -ItemType Directory -Force -Path package/client
+
+          Copy-Item server/dist package/server/ -Recurse
+          Copy-Item server/node_modules package/server/ -Recurse
+          Copy-Item server/package.json package/server/
+
+          Copy-Item client/dist package/client/ -Recurse
+
+          @'
+          @echo off
+          cd /d "%~dp0"
+          echo Starting SillyInnkeeper...
+          node server\dist\server.js
+          pause
+          '@ | Set-Content package/start.bat
+
+      - name: Create ZIP
+        run: |
+          Compress-Archive -Path package/* -DestinationPath SillyInnkeeper-Windows-x64.zip
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: SillyInnkeeper-Windows-x64
+          path: SillyInnkeeper-Windows-x64.zip
+          retention-days: 7
