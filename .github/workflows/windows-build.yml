@@ -22,8 +22,8 @@ jobs:
 
       - name: Install client dependencies
         working-directory: client
-        run: npm install --no-audit --no-fund
-
+        run: npm install --legacy-peer-deps --no-audit --no-fund
+      
       - name: Build client
         working-directory: client
         run: npm run build
